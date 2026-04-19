@@ -153,7 +153,7 @@ namespace folly {
 `;
 
 // ─── Podfile patch ───────────────────────────────────────────────────────────
-const PATCH_MARKER = '# [withIosCppFlags-v7]';
+const PATCH_MARKER = '# [withIosCppFlags-v8]';
 
 function findCallEnd(src, start) {
   let depth = 0;
@@ -176,6 +176,7 @@ function patchPodfile(contents) {
   installer.pods_project.targets.each do |target|
     target.build_configurations.each do |bc|
       bc.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++20'
+      bc.build_settings['GCC_TREAT_WARNINGS_AS_ERRORS'] = 'NO'
       sp = bc.build_settings['HEADER_SEARCH_PATHS']
       sp = sp.is_a?(Array) ? sp.dup : (sp ? [sp] : ['$(inherited)'])
       sp += [_folly_shim] unless sp.join.include?('FollyHeaders')
