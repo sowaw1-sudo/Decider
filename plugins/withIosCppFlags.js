@@ -35,6 +35,8 @@ const FOLLY_CORO_H = `\
 
 #if __has_include(<coroutine>)
 #  include <coroutine>
+#  include <exception>
+#  include <type_traits>
 
 namespace folly {
 
@@ -48,8 +50,6 @@ namespace folly {
   }
 
   // ── folly::coro namespace ─────────────────────────────────────────────────
-  // Swift C++ interop imports this namespace as "Coro" (UpperCamelCase).
-  // It must exist for folly.Coro.* access to resolve in Swift callers.
   namespace coro {
 
     template <typename Promise = void>
@@ -60,24 +60,15 @@ namespace folly {
       return std::noop_coroutine();
     }
 
-    // Minimal coroutine task type usable as a C++20 coroutine return type.
-    // React Native codegen uses this as the return type of async module
-    // methods; it does not need to be await-able at the shim level.
-    template <typename T = void>
-    class Coro {
-    public:
-      struct promise_type {
-        Coro get_return_object() noexcept { return {}; }
-        std::suspend_always initial_suspend() noexcept { return {}; }
-        std::suspend_always final_suspend()   noexcept { return {}; }
-        void return_void() noexcept {}
-        void unhandled_exception() noexcept { std::terminate(); }
-      };
-    };
+    // Folly uses this trait to detect C++23 P2644R1 eager return-object
+    // conversion on a promise type. Always false under C++20.
+    template <typename Promise, typename = void>
+    struct detect_promise_return_object_eager_conversion : std::false_type {};
 
-    // Specialisation for non-void T (stores a value).
+    // ── Coro<T>: minimal C++20 coroutine return type ─────────────────────
+    // Primary template handles non-void T (uses return_value).
     template <typename T>
-    class Coro<T> {
+    class Coro {
     public:
       struct promise_type {
         Coro get_return_object() noexcept { return {}; }
@@ -88,9 +79,22 @@ namespace folly {
       };
     };
 
+    // Full specialisation for void (uses return_void).
+    template <>
+    class Coro<void> {
+    public:
+      struct promise_type {
+        Coro get_return_object() noexcept { return {}; }
+        std::suspend_always initial_suspend() noexcept { return {}; }
+        std::suspend_always final_suspend()   noexcept { return {}; }
+        void return_void() noexcept {}
+        void unhandled_exception() noexcept { std::terminate(); }
+      };
+    };
+
   } // namespace coro
 
-  // folly::Coro<T> as a direct alias for folly::coro::Coro<T>
+  // folly::Coro<T> alias — default T=void so callers can write folly::Coro<>
   template <typename T = void>
   using Coro = coro::Coro<T>;
 
@@ -98,6 +102,8 @@ namespace folly {
 
 #elif __has_include(<experimental/coroutine>)
 #  include <experimental/coroutine>
+#  include <exception>
+#  include <type_traits>
 
 namespace folly {
   template <typename Promise = void>
@@ -111,26 +117,29 @@ namespace folly {
     using suspend_always = std::experimental::suspend_always;
     using suspend_never  = std::experimental::suspend_never;
 
-    template <typename T = void>
+    template <typename Promise, typename = void>
+    struct detect_promise_return_object_eager_conversion : std::false_type {};
+
+    template <typename T>
     class Coro {
     public:
       struct promise_type {
         Coro get_return_object() noexcept { return {}; }
         std::experimental::suspend_always initial_suspend() noexcept { return {}; }
         std::experimental::suspend_always final_suspend()   noexcept { return {}; }
-        void return_void() noexcept {}
+        void return_value(T) noexcept {}
         void unhandled_exception() noexcept { std::terminate(); }
       };
     };
 
-    template <typename T>
-    class Coro<T> {
+    template <>
+    class Coro<void> {
     public:
       struct promise_type {
         Coro get_return_object() noexcept { return {}; }
         std::experimental::suspend_always initial_suspend() noexcept { return {}; }
         std::experimental::suspend_always final_suspend()   noexcept { return {}; }
-        void return_value(T) noexcept {}
+        void return_void() noexcept {}
         void unhandled_exception() noexcept { std::terminate(); }
       };
     };
@@ -146,7 +155,7 @@ namespace folly {
 `;
 
 // ─── Podfile patch ───────────────────────────────────────────────────────────
-const PATCH_MARKER = '# [withIosCppFlags-v3]';
+const PATCH_MARKER = '# [withIosCppFlags-v4]';
 
 function findCallEnd(src, start) {
   let depth = 0;
