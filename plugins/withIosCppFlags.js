@@ -60,10 +60,11 @@ namespace folly {
       return std::noop_coroutine();
     }
 
-    // Folly uses this trait to detect C++23 P2644R1 eager return-object
-    // conversion on a promise type. Always false under C++20.
-    template <typename Promise, typename = void>
-    struct detect_promise_return_object_eager_conversion : std::false_type {};
+    // Real Folly defines this as an inline variable template (constexpr bool),
+    // NOT a struct. Code reads it as a bool value: if constexpr (detect_…<P>).
+    // Always false in C++20 — C++23 P2644R1 eager conversion is never active.
+    template <class Promise, class = void>
+    inline constexpr bool detect_promise_return_object_eager_conversion = false;
 
     // ── Coro<T>: minimal C++20 coroutine return type ─────────────────────
     // Primary template handles non-void T (uses return_value).
@@ -117,8 +118,8 @@ namespace folly {
     using suspend_always = std::experimental::suspend_always;
     using suspend_never  = std::experimental::suspend_never;
 
-    template <typename Promise, typename = void>
-    struct detect_promise_return_object_eager_conversion : std::false_type {};
+    template <class Promise, class = void>
+    inline constexpr bool detect_promise_return_object_eager_conversion = false;
 
     template <typename T>
     class Coro {
@@ -155,7 +156,7 @@ namespace folly {
 `;
 
 // ─── Podfile patch ───────────────────────────────────────────────────────────
-const PATCH_MARKER = '# [withIosCppFlags-v4]';
+const PATCH_MARKER = '# [withIosCppFlags-v5]';
 
 function findCallEnd(src, start) {
   let depth = 0;
