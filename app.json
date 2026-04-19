@@ -42,10 +42,11 @@
             "ndkVersion": "26.1.10909125"
           },
           "ios": {
-            "deploymentTarget": "15.1"
+            "deploymentTarget": "16.0"
           }
         }
-      ]
+      ],
+      "./plugins/withIosCppFlags"
     ]
   }
 }
