@@ -16,7 +16,8 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.decider.app",
       "infoPlist": {
-        "NSUserTrackingUsageDescription": "This app uses advertising ID to show relevant ads."
+        "NSUserTrackingUsageDescription": "This app uses advertising ID to show relevant ads.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -47,6 +48,11 @@
         }
       ],
       "./plugins/withIosCppFlags"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "109f2922-2010-4bf0-be8a-91c99d1a1cfd"
+      }
+    }
   }
 }
