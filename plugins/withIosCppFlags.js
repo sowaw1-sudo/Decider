@@ -153,7 +153,7 @@ namespace folly {
 `;
 
 // ─── Podfile patch ───────────────────────────────────────────────────────────
-const PATCH_MARKER = '# [withIosCppFlags-v6]';
+const PATCH_MARKER = '# [withIosCppFlags-v7]';
 
 function findCallEnd(src, start) {
   let depth = 0;
@@ -181,6 +181,9 @@ function patchPodfile(contents) {
       sp += [_folly_shim] unless sp.join.include?('FollyHeaders')
       sp += [_rct_folly]  unless sp.join.include?('RCT-Folly')
       bc.build_settings['HEADER_SEARCH_PATHS'] = sp
+      fl = bc.build_settings['OTHER_CPLUSPLUSFLAGS']
+      fl = fl.is_a?(Array) ? fl.join(' ') : (fl || '$(inherited)').to_s
+      bc.build_settings['OTHER_CPLUSPLUSFLAGS'] = fl + ' -Wno-overloaded-virtual' unless fl.include?('-Wno-overloaded-virtual')
     end
   end
 `;
